@@ -1,12 +1,13 @@
 from __future__ import division
 import warnings
 
+import numpy as np
 import keras.backend as K
 from keras.layers import Lambda, Input, Layer, Dense
 
 from rl.core import Agent
 from rl.policy import EpsGreedyQPolicy, GreedyQPolicy
-from rl.util import *
+from rl.util import huber_loss, get_object_config, clone_model, get_soft_target_model_updates, AdditionalUpdatesOptimizer
 from rl.keras_future import Model
 
 
@@ -17,9 +18,21 @@ def mean_q(y_true, y_pred):
 class AbstractDQNAgent(Agent):
     """Write me
     """
-    def __init__(self, nb_actions, memory, gamma=.99, batch_size=32, nb_steps_warmup=1000,
-                 train_interval=1, memory_interval=1, target_model_update=10000,
-                 delta_range=None, delta_clip=np.inf, custom_model_objects={}, **kwargs):
+    def __init__(
+        self,
+        nb_actions,
+        memory,
+        gamma=.99,
+        batch_size=32,
+        nb_steps_warmup=1000,
+        train_interval=1,
+        memory_interval=1,
+        target_model_update=10000,
+        delta_range=None,
+        delta_clip=np.inf,
+        custom_model_objects={},
+        **kwargs
+    ):
         super(AbstractDQNAgent, self).__init__(**kwargs)
 
         # Soft vs hard target model updates.
@@ -33,7 +46,9 @@ class AbstractDQNAgent(Agent):
             target_model_update = float(target_model_update)
 
         if delta_range is not None:
-            warnings.warn('`delta_range` is deprecated. Please use `delta_clip` instead, which takes a single scalar. For now we\'re falling back to `delta_range[1] = {}`'.format(delta_range[1]))
+            warnings.warn(
+                '`delta_range` is deprecated. Please use `delta_clip` instead, which takes a single scalar. For now we\'re falling back to `delta_range[1] = {}`'.
+                format(delta_range[1]))
             delta_clip = delta_range[1]
 
         # Parameters.
@@ -83,21 +98,35 @@ class AbstractDQNAgent(Agent):
             'memory': get_object_config(self.memory),
         }
 
+
 # An implementation of the DQN agent as described in Mnih (2013) and Mnih (2015).
 # http://arxiv.org/pdf/1312.5602.pdf
 # http://arxiv.org/abs/1509.06461
 class DQNAgent(AbstractDQNAgent):
     """Write me
     """
-    def __init__(self, model, policy=None, test_policy=None, enable_double_dqn=True, enable_dueling_network=False,
-                 dueling_type='avg', *args, **kwargs):
+    def __init__(
+        self,
+        model,
+        policy=None,
+        test_policy=None,
+        enable_double_dqn=True,
+        enable_dueling_network=False,
+        dueling_type='avg',
+        *args,
+        **kwargs
+    ):
         super(DQNAgent, self).__init__(*args, **kwargs)
 
         # Validate (important) input.
         if hasattr(model.output, '__len__') and len(model.output) > 1:
-            raise ValueError('Model "{}" has more than one output. DQN expects a model that has a single output.'.format(model))
+            raise ValueError(
+                'Model "{}" has more than one output. DQN expects a model that has a single output.'.
+                format(model))
         if model.output._keras_shape != (None, self.nb_actions):
-            raise ValueError('Model output "{}" has invalid shape. DQN expects a model that has one dimension for each action, in this case {}.'.format(model.output, self.nb_actions))
+            raise ValueError(
+                'Model output "{}" has invalid shape. DQN expects a model that has one dimension for each action, in this case {}.'.
+                format(model.output, self.nb_actions))
 
         # Parameters.
         self.enable_double_dqn = enable_double_dqn
@@ -231,7 +260,10 @@ class DQNAgent(AbstractDQNAgent):
     def backward(self, reward, terminal):
         # Store most recent experience in memory.
         if self.step % self.memory_interval == 0:
-            self.memory.append(self.recent_observation, self.recent_action, reward, terminal,
+            self.memory.append(self.recent_observation,
+                               self.recent_action,
+                               reward,
+                               terminal,
                                training=self.training)
 
         metrics = [np.nan for _ in self.metrics_names]
