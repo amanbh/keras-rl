@@ -42,6 +42,8 @@ class Agent(object):
         # Use a default identity processor if not provided
         if processor is None:
             self.processor = Processor()
+        else:
+            self.processor = processor
         self.training = False
         self.step = 0
 
@@ -177,6 +179,7 @@ class Agent(object):
         if termination_criterion == STEPS_TERMINATION:
             def termination():
                 return (self.step >= nb_steps)
+
         elif termination_criterion == EPISODES_TERMINATION:
             def termination():
                 return (episode >= nb_episodes)
@@ -193,7 +196,8 @@ class Agent(object):
                     # Obtain the initial observation by resetting the environment.
                     self.reset_states()
                     observation_0 = deepcopy(env.reset())
-                    observation_0 = self.processor.process_observation(observation_0)
+                    if self.processor is not None:
+                        observation_0 = self.processor.process_observation(observation_0)
                     assert observation_0 is not None
 
                     # Perform random steps at beginning of episode and do not record them into the experience.
