@@ -39,9 +39,15 @@ class TestAgent(Agent):
         self.recent_observation = observation
         return action
 
-    def backward(self, reward, terminal):
+    def backward(self,
+                 observation_0,
+                 action,
+                 reward,
+                 observation_1,
+                 terminal):
         metrics = [np.nan for _ in self.metrics_names]
-        self.memory.append(self.recent_observation, self.recent_action, reward, terminal)
+        self.memory.append(observation_0, action, reward,
+                           observation_1, terminal)
         return metrics
 
     def compile(self):
@@ -57,13 +63,13 @@ def test_fit_observations():
 
     # Inspect memory to see if observations are correct.
     experiencies = memory.sample(batch_size=8, batch_idxs=range(8))
-    
+
     assert experiencies[0].reward == .2
     assert experiencies[0].action == 1
     assert_allclose(experiencies[0].state0, np.array([0, 1]))
     assert_allclose(experiencies[0].state1, np.array([1, 2]))
     assert experiencies[0].terminal1 is False
-    
+
     assert experiencies[1].reward == .3
     assert experiencies[1].action == 2
     assert_allclose(experiencies[1].state0, np.array([1, 2]))
@@ -114,7 +120,7 @@ def test_copy_observations():
 
     for method in methods:
         original_observations = []
-        
+
         class LocalEnv(Env):
             def __init__(self):
                 super(LocalEnv, self).__init__()
@@ -155,7 +161,7 @@ def test_copy_observations():
         assert len(observations) == len(original_observations)
         assert_allclose(np.array(observations), np.array(original_observations))
         assert np.all([o is not o_ for o, o_ in zip(original_observations, observations)])
-    
+
 
 if __name__ == '__main__':
     pytest.main([__file__])
